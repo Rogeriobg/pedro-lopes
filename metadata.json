@@ -1,0 +1,8 @@
+{
+  "name": "Pedro Lopes - Cantor Sertanejo",
+  "description": "Site oficial do cantor sertanejo Pedro Lopes, com agenda de shows, blog, galeria e área administrativa.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

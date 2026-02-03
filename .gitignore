@@ -1,0 +1,18 @@
+
+# Bibliotecas do Frontend
+node_modules/
+
+# Bibliotecas do Backend (dentro da subpasta)
+pedro-lopes-api/node_modules/
+
+# Arquivos de Build
+dist/
+build/
+
+# ARQUIVOS SENSÍVEIS (NUNCA SUBIR)
+.env
+pedro-lopes-api/.env
+
+# Logs e arquivos de sistema
+npm-debug.log*
+.DS_Store
