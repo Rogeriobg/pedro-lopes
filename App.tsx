@@ -69,6 +69,8 @@ const App: React.FC = () => {
 
     setIsAuthenticating(true);
     try {
+      // API_BASE_URL já lida com o ambiente.
+      // Em produção chamará /api/login, em local http://localhost:5000/api/login
       const response = await fetch(`${API_BASE_URL}/api/login`, {
         method: "POST",
         headers: {
@@ -88,7 +90,9 @@ const App: React.FC = () => {
       }
     } catch (error) {
       console.error("Erro na autenticação:", error);
-      alert("Erro ao conectar com o servidor administrativo.");
+      alert(
+        "Não foi possível conectar ao servidor. Verifique se o backend está rodando.",
+      );
     } finally {
       setIsAuthenticating(false);
     }
