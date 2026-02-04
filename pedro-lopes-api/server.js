@@ -11,21 +11,24 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Logger de requisições para o PM2
+// Logger simples para ver o que está acontecendo no terminal da VPS
 app.use((req, res, next) => {
   console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
   next();
 });
 
 // ==========================================================
-// CONFIGURAÇÃO DE CAMINHOS
+// CONFIGURAÇÃO DE PASTAS E PERSISTÊNCIA (BANCO JSON)
 // ==========================================================
 const UPLOADS_ROOT =
   process.env.NODE_ENV === "production"
     ? path.join(__dirname, "../public_html/uploads")
     : path.join(__dirname, "public/uploads");
 
-// Garantia de estrutura de pastas
+const DATA_DIR = path.join(__dirname, "data");
+const DB_FILE = path.join(DATA_DIR, "db.json");
+
+// Cria as pastas se não existirem
 if (!fs.existsSync(UPLOADS_ROOT))
   fs.mkdirSync(UPLOADS_ROOT, { recursive: true });
 ["imagens", "musicas"].forEach((f) => {
@@ -33,58 +36,96 @@ if (!fs.existsSync(UPLOADS_ROOT))
   if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
 });
 
-// IMPORTANTE: Servir os arquivos através de /api/uploads para o Nginx aceitar
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+// Inicializa o arquivo de banco de dados se não existir
+const initDB = () => {
+  if (!fs.existsSync(DB_FILE)) {
+    const initialData = {
+      shows: [], // Agenda de Shows
+      posts: [], // Blog
+      gallery: [], // Galeria de Fotos/Vídeos
+      songs: [], // Lista de Músicas
+    };
+    fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
+    console.log("✅ Banco de dados db.json criado com sucesso!");
+  }
+};
+initDB();
+
+const readDB = () => JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+const writeDB = (data) =>
+  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+
+// Servir arquivos estáticos (Mídia)
 app.use("/api/uploads", express.static(UPLOADS_ROOT));
-// Manter compatibilidade local caso necessário
 app.use("/uploads", express.static(UPLOADS_ROOT));
 
 // ==========================================================
-// DIAGNÓSTICO
+// ROTAS DE DADOS (DADOS PERSISTENTES DA AGENDA, BLOG, ETC)
 // ==========================================================
-app.get("/api/debug", (req, res) => {
-  let writeTest = "Não testado";
-  try {
-    const testFile = path.join(UPLOADS_ROOT, "test.txt");
-    fs.writeFileSync(testFile, "teste " + new Date());
-    fs.unlinkSync(testFile);
-    writeTest = "OK";
-  } catch (err) {
-    writeTest = "ERRO: " + err.message;
-  }
 
-  res.json({
-    status: "online",
-    ambiente: process.env.NODE_ENV || "development",
-    caminho_uploads: UPLOADS_ROOT,
-    teste_escrita: writeTest,
-    info: "Use /api/uploads/imagens/[nome] para acessar arquivos",
-  });
+// Buscar todos os dados para o site
+app.get("/api/data", (req, res) => {
+  try {
+    res.json(readDB());
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao ler dados" });
+  }
+});
+
+// Adicionar Item (Funciona para 'shows', 'posts', 'gallery', 'songs')
+app.post("/api/data/:collection", (req, res) => {
+  const { collection } = req.params;
+  const item = req.body;
+  try {
+    const db = readDB();
+    if (!db[collection]) db[collection] = [];
+
+    const newItem = { ...item, id: item.id || Date.now().toString() };
+    db[collection].unshift(newItem); // Adiciona no topo da lista
+
+    writeDB(db);
+    console.log(`✅ Item adicionado em ${collection}:`, newItem.id);
+    res.json(newItem);
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao salvar item" });
+  }
+});
+
+// Deletar Item
+app.delete("/api/data/:collection/:id", (req, res) => {
+  const { collection, id } = req.params;
+  try {
+    const db = readDB();
+    if (db[collection]) {
+      db[collection] = db[collection].filter((i) => i.id !== id);
+      writeDB(db);
+      console.log(`🗑️ Item deletado de ${collection}:`, id);
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao deletar item" });
+  }
 });
 
 // ==========================================================
-// LOGIN
+// LOGIN E UPLOAD DE ARQUIVOS
 // ==========================================================
 const DEFAULT_HASH =
-  "$2b$10$89v4l.tEEn1f8.6lS6vVme1hS6S6S6S6S6S6S6S6S6S6S6S6S6S6S"; // pedro123
+  "$2b$10$89v4l.tEEn1f8.6lS6vVme1hS6S6S6S6S6S6S6S6S6S6S6S6S6S6S"; // senha: pedro123
 const ADMIN_HASH = process.env.ADMIN_PASSWORD_HASH || DEFAULT_HASH;
 
 app.post("/api/login", async (req, res) => {
   const { password } = req.body;
   try {
     const match = await bcrypt.compare(password, ADMIN_HASH);
-    if (match) {
-      res.json({ success: true });
-    } else {
-      res.status(401).json({ success: false, error: "Senha incorreta." });
-    }
-  } catch (error) {
-    res.status(500).json({ success: false, error: "Erro interno." });
+    res.json({ success: match });
+  } catch (err) {
+    res.status(500).json({ success: false });
   }
 });
 
-// ==========================================================
-// UPLOAD
-// ==========================================================
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const folder = req.body.folder || "imagens";
@@ -99,38 +140,36 @@ const storage = multer.diskStorage({
 const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
 
 app.post("/api/upload", upload.single("file"), (req, res) => {
-  if (!req.file)
-    return res.status(400).json({ error: "Nenhum arquivo enviado." });
+  if (!req.file) return res.status(400).json({ error: "Arquivo não enviado." });
   const folder = req.body.folder || "imagens";
-  // Retornamos a URL com o prefixo /api para o Nginx redirecionar corretamente
   res.json({ url: `/api/uploads/${folder}/${req.file.filename}` });
 });
 
-// ==========================================================
-// CONTATO
-// ==========================================================
-const GMAIL_USER = process.env.GMAIL_USER || "studiorgonline@gmail.com";
-const GMAIL_PASS = process.env.GMAIL_PASS || "vjof xevt cmvq ywmw";
+// Contato por e-mail
 const transporter = nodemailer.createTransport({
   service: "gmail",
-  auth: { user: GMAIL_USER, pass: GMAIL_PASS },
+  auth: {
+    user: process.env.GMAIL_USER || "studiorgonline@gmail.com",
+    pass: process.env.GMAIL_PASS || "vjof xevt cmvq ywmw",
+  },
 });
 
 app.post("/api/contact", async (req, res) => {
   const { name, email, subject, message } = req.body;
   try {
     await transporter.sendMail({
-      from: GMAIL_USER,
-      to: GMAIL_USER,
-      replyTo: email,
-      subject: `SITE PEDRO LOPES: ${subject}`,
-      text: `De: ${name} (${email})\n\nMensagem:\n${message}`,
+      from: "Site Pedro Lopes",
+      to: process.env.GMAIL_USER || "studiorgonline@gmail.com",
+      subject: `CONTATO SITE: ${subject}`,
+      text: `Nome: ${name}\nEmail: ${email}\n\nMensagem:\n${message}`,
     });
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: "Falha ao enviar e-mail." });
+    res.status(500).json({ error: "Erro e-mail" });
   }
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 API RODANDO NA PORTA: ${PORT}`));
+app.listen(PORT, () =>
+  console.log(`🚀 API PEDRO LOPES ONLINE NA PORTA ${PORT}`),
+);

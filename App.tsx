@@ -26,102 +26,104 @@ const App: React.FC = () => {
   const [showLogin, setShowLogin] = useState(false);
   const [loginPass, setLoginPass] = useState("");
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
 
-  // Estados com persistência no LocalStorage
-  const [shows, setShows] = useState<Show[]>(() => {
-    const saved = localStorage.getItem("pedro_lopes_shows");
-    return saved ? JSON.parse(saved) : INITIAL_SHOWS;
-  });
+  // Estados dos Dados (Carregados do Servidor)
+  const [shows, setShows] = useState<Show[]>([]);
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+  const [songs, setSongs] = useState<Song[]>([]);
 
-  const [posts, setPosts] = useState<BlogPost[]>(() => {
-    const saved = localStorage.getItem("pedro_lopes_posts");
-    return saved ? JSON.parse(saved) : INITIAL_BLOG_POSTS;
-  });
-
-  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>(() => {
-    const saved = localStorage.getItem("pedro_lopes_gallery");
-    return saved ? JSON.parse(saved) : GALLERY_ITEMS;
-  });
-
-  const [songs, setSongs] = useState<Song[]>(() => {
-    const saved = localStorage.getItem("pedro_lopes_songs");
-    return saved ? JSON.parse(saved) : MY_SONGS;
-  });
-
+  // 1. CARREGAR DADOS AO INICIAR
   useEffect(() => {
-    localStorage.setItem("pedro_lopes_shows", JSON.stringify(shows));
-  }, [shows]);
-
-  useEffect(() => {
-    localStorage.setItem("pedro_lopes_posts", JSON.stringify(posts));
-  }, [posts]);
-
-  useEffect(() => {
-    localStorage.setItem("pedro_lopes_gallery", JSON.stringify(galleryItems));
-  }, [galleryItems]);
-
-  useEffect(() => {
-    localStorage.setItem("pedro_lopes_songs", JSON.stringify(songs));
-  }, [songs]);
+    const fetchData = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/data`);
+        if (response.ok) {
+          const data = await response.json();
+          // Atualiza os estados com o que veio do db.json da VPS
+          setShows(data.shows || []);
+          setPosts(data.posts || []);
+          setGalleryItems(data.gallery || []);
+          setSongs(data.songs || []);
+        }
+      } catch (error) {
+        console.error("Erro ao sincronizar dados com o servidor:", error);
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const handleAdminLogin = async () => {
     if (!loginPass) return;
-
     setIsAuthenticating(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: loginPass }),
       });
-
       const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (data.success) {
         setIsAdminMode(true);
         setShowLogin(false);
         setLoginPass("");
       } else {
-        alert(data.error || "Senha incorreta!");
+        alert("Senha incorreta!");
       }
     } catch (error) {
-      console.error("Erro na autenticação:", error);
-      alert(
-        "Não foi possível conectar ao servidor. Verifique se o backend está rodando.",
-      );
+      alert("Erro de conexão com a API.");
     } finally {
       setIsAuthenticating(false);
     }
   };
 
-  const addShow = (s: Omit<Show, "id">) =>
-    setShows((prev) => [{ ...s, id: Date.now().toString() }, ...prev]);
-  const deleteShow = (id: string) =>
-    setShows((prev) => prev.filter((s) => s.id !== id));
+  // 2. FUNÇÕES CRUD GENÉRICAS (Sincronizam com o Servidor)
+  const addData = async (collection: string, item: any, setState: Function) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/data/${collection}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(item),
+      });
+      if (response.ok) {
+        const newItem = await response.json();
+        setState((prev: any) => [newItem, ...prev]);
+        console.log(`Sucesso ao salvar ${collection} no servidor.`);
+      }
+    } catch (err) {
+      alert("Erro ao salvar dados na VPS.");
+    }
+  };
 
-  const addPost = (p: Omit<BlogPost, "id" | "likes" | "loves">) =>
-    setPosts((prev) => [
-      { ...p, id: Date.now().toString(), likes: 0, loves: 0 },
-      ...prev,
-    ]);
-  const deletePost = (id: string) =>
-    setPosts((prev) => prev.filter((p) => p.id !== id));
-
-  const addGalleryItem = (item: Omit<GalleryItem, "id">) =>
-    setGalleryItems((prev) => [
-      { ...item, id: Date.now().toString() },
-      ...prev,
-    ]);
-  const deleteGalleryItem = (id: string) =>
-    setGalleryItems((prev) => prev.filter((item) => item.id !== id));
-
-  const addSong = (s: Omit<Song, "id">) =>
-    setSongs((prev) => [{ ...s, id: Date.now().toString() }, ...prev]);
-  const deleteSong = (id: string) =>
-    setSongs((prev) => prev.filter((s) => s.id !== id));
+  const deleteData = async (
+    collection: string,
+    id: string,
+    setState: Function,
+  ) => {
+    if (
+      !window.confirm(
+        "Tem certeza que deseja excluir este item permanentemente?",
+      )
+    )
+      return;
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/data/${collection}/${id}`,
+        {
+          method: "DELETE",
+        },
+      );
+      if (response.ok) {
+        setState((prev: any) => prev.filter((i: any) => i.id !== id));
+      }
+    } catch (err) {
+      alert("Erro ao excluir do servidor.");
+    }
+  };
 
   const toggleLike = (postId: string) => {
     setPosts((prev) =>
@@ -142,14 +144,15 @@ const App: React.FC = () => {
         posts={posts}
         galleryItems={galleryItems}
         songs={songs}
-        onAddShow={addShow}
-        onDeleteShow={deleteShow}
-        onAddPost={addPost}
-        onDeletePost={deletePost}
-        onAddGalleryItem={addGalleryItem}
-        onDeleteGalleryItem={deleteGalleryItem}
-        onAddSong={addSong}
-        onDeleteSong={deleteSong}
+        // Todas as ações agora chamam a API
+        onAddShow={(s) => addData("shows", s, setShows)}
+        onDeleteShow={(id) => deleteData("shows", id, setShows)}
+        onAddPost={(p) => addData("posts", p, setPosts)}
+        onDeletePost={(id) => deleteData("posts", id, setPosts)}
+        onAddGalleryItem={(i) => addData("gallery", i, setGalleryItems)}
+        onDeleteGalleryItem={(id) => deleteData("gallery", id, setGalleryItems)}
+        onAddSong={(s) => addData("songs", s, setSongs)}
+        onDeleteSong={(id) => deleteData("songs", id, setSongs)}
         onLogout={() => setIsAdminMode(false)}
       />
     );
@@ -159,24 +162,39 @@ const App: React.FC = () => {
     <div className="relative overflow-hidden bg-[#2D0B0B]">
       <Navbar onOpenLogin={() => setShowLogin(true)} />
 
-      <main>
-        <Hero />
-        <MusicSection songs={songs} />
-        <Schedule shows={shows} />
-        <Gallery items={galleryItems} />
-        <Blog
-          posts={posts}
-          onLike={toggleLike}
-          onLove={toggleLove}
-          onReadMore={(post) => setSelectedPost(post)}
-        />
-        <Contact />
-      </main>
+      {isLoadingData ? (
+        <div className="h-screen flex flex-col items-center justify-center text-white gap-6">
+          <Loader2 className="animate-spin text-red-600" size={64} />
+          <div className="text-center">
+            <h2 className="text-xl font-serif font-black uppercase tracking-widest">
+              Sincronizando
+            </h2>
+            <p className="text-xs opacity-50 uppercase tracking-[0.3em] mt-2">
+              Carregando Agenda e Mídia...
+            </p>
+          </div>
+        </div>
+      ) : (
+        <main>
+          <Hero />
+          <MusicSection songs={songs} />
+          <Schedule shows={shows} />
+          <Gallery items={galleryItems} />
+          <Blog
+            posts={posts}
+            onLike={toggleLike}
+            onLove={toggleLove}
+            onReadMore={setSelectedPost}
+          />
+          <Contact />
+        </main>
+      )}
 
       <Footer />
 
+      {/* Modal de Leitura do Blog */}
       {selectedPost && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/95 backdrop-blur-md"
             onClick={() => setSelectedPost(null)}
@@ -184,7 +202,7 @@ const App: React.FC = () => {
           <div className="relative bg-[#2D0B0B] border border-white/10 w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl">
             <button
               onClick={() => setSelectedPost(null)}
-              className="absolute top-6 right-6 z-10 p-2 bg-red-700 text-white rounded-full shadow-xl hover:scale-110 transition"
+              className="absolute top-6 right-6 z-10 p-2 bg-red-700 text-white rounded-full"
             >
               <X size={24} />
             </button>
@@ -193,11 +211,11 @@ const App: React.FC = () => {
               className="w-full h-[450px] object-cover"
               alt=""
             />
-            <div className="p-8 md:p-12">
+            <div className="p-8 md:p-12 text-white">
               <span className="text-red-600 font-bold uppercase tracking-widest text-sm mb-4 block">
                 {selectedPost.date}
               </span>
-              <h2 className="text-4xl md:text-5xl font-serif font-black text-white mb-8">
+              <h2 className="text-4xl md:text-5xl font-serif font-black mb-8">
                 {selectedPost.title}
               </h2>
               <div className="text-white/80 text-lg leading-relaxed whitespace-pre-wrap">
@@ -208,6 +226,7 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {/* Login Admin */}
       {showLogin && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
           <div
@@ -215,27 +234,23 @@ const App: React.FC = () => {
             onClick={() => setShowLogin(false)}
           ></div>
           <div className="relative bg-[#2D0B0B] p-10 rounded-3xl border border-white/10 max-w-sm w-full text-white">
-            <h2 className="text-2xl font-bold mb-6">Acesso Administrativo</h2>
+            <h2 className="text-2xl font-bold mb-6">Painel Administrativo</h2>
             <input
               type="password"
-              placeholder="Digite a senha"
+              placeholder="Senha de acesso"
               className="w-full bg-black/40 border border-white/10 rounded-xl p-4 mb-4 outline-none focus:border-red-600"
               value={loginPass}
               onChange={(e) => setLoginPass(e.target.value)}
-              onKeyDown={(e) =>
-                e.key === "Enter" && !isAuthenticating && handleAdminLogin()
-              }
-              disabled={isAuthenticating}
+              onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
             />
             <button
               onClick={handleAdminLogin}
-              disabled={isAuthenticating}
-              className={`w-full flex items-center justify-center gap-2 bg-red-700 hover:bg-red-600 py-4 rounded-xl font-bold transition uppercase tracking-widest ${isAuthenticating ? "opacity-50 cursor-not-allowed" : ""}`}
+              className="w-full flex items-center justify-center gap-2 bg-red-700 hover:bg-red-600 py-4 rounded-xl font-bold transition uppercase"
             >
               {isAuthenticating ? (
                 <Loader2 className="animate-spin" size={20} />
               ) : (
-                "Entrar no Painel"
+                "Acessar"
               )}
             </button>
           </div>
