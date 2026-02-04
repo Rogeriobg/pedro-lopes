@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import { Music, Play, Pause, Disc, AlertCircle } from "lucide-react";
 import Section from "../Section";
 import { Song } from "@/types";
+import { getMediaUrl } from "@/constants";
 
 interface MusicSectionProps {
   songs: Song[];
@@ -31,7 +32,7 @@ const MusicSection: React.FC<MusicSectionProps> = ({ songs }) => {
           return;
         }
 
-        audioRef.current.src = song.spotifyUrl;
+        audioRef.current.src = getMediaUrl(song.spotifyUrl);
         const playPromise = audioRef.current.play();
 
         if (playPromise !== undefined) {

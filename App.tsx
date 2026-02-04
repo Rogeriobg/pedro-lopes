@@ -17,6 +17,7 @@ import {
   GALLERY_ITEMS,
   MY_SONGS,
   API_BASE_URL,
+  getMediaUrl,
 } from "./constants";
 import { Loader2, X } from "lucide-react";
 
@@ -69,8 +70,6 @@ const App: React.FC = () => {
 
     setIsAuthenticating(true);
     try {
-      // API_BASE_URL já lida com o ambiente.
-      // Em produção chamará /api/login, em local http://localhost:5000/api/login
       const response = await fetch(`${API_BASE_URL}/api/login`, {
         method: "POST",
         headers: {
@@ -190,7 +189,7 @@ const App: React.FC = () => {
               <X size={24} />
             </button>
             <img
-              src={selectedPost.imageUrl}
+              src={getMediaUrl(selectedPost.imageUrl)}
               className="w-full h-[450px] object-cover"
               alt=""
             />

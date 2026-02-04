@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Image as ImageIcon, Video, X, Play } from "lucide-react";
 import Section from "../Section";
 import { GalleryItem } from "@/types";
+import { getMediaUrl } from "@/constants";
 
 interface GalleryProps {
   items: GalleryItem[];
@@ -15,65 +16,65 @@ const Gallery: React.FC<GalleryProps> = ({ items }) => {
     setErrorImages((prev) => ({ ...prev, [id]: true }));
   };
 
-  // Filtramos itens que deram erro para não mostrar o "quadro" quebrado
-  const validItems = items.filter((item) => !errorImages[item.id]);
+  // Filtragem rigorosa: só mostra o que tem URL e NÃO deu erro de carregamento
+  const validItems = items.filter((item) => {
+    if (!item.url || item.url.trim() === "") return false;
+    if (errorImages[item.id]) return false;
+    if (item.type === "video" && !item.thumbnail) return false;
+    return true;
+  });
+
+  // Se não houver itens válidos, não renderizamos a seção para não deixar espaços vazios
+  if (validItems.length === 0) return null;
 
   return (
     <Section id="gallery" title="Galeria">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {validItems.length > 0 ? (
-          validItems.map((item) => {
-            const displayUrl =
-              item.type === "video" ? item.thumbnail || "" : item.url;
+        {validItems.map((item) => {
+          const displayUrl = getMediaUrl(
+            item.type === "video" ? item.thumbnail || "" : item.url,
+          );
 
-            return (
-              <div
-                key={item.id}
-                onClick={() => setSelectedMedia(item)}
-                className="relative aspect-square overflow-hidden rounded-2xl group cursor-pointer shadow-lg bg-[#1a1a1a] border border-white/5"
-              >
-                <img
-                  src={displayUrl}
-                  className="w-full h-full object-cover transition duration-700 group-hover:scale-110 group-hover:opacity-40"
-                  alt=""
-                  loading="lazy"
-                  onError={() => handleImageError(item.id)}
-                />
+          return (
+            <div
+              key={item.id}
+              onClick={() => setSelectedMedia(item)}
+              className="relative aspect-square overflow-hidden rounded-2xl group cursor-pointer shadow-lg bg-black/20 border border-white/5"
+            >
+              <img
+                src={displayUrl}
+                className="w-full h-full object-cover transition duration-700 group-hover:scale-110 group-hover:opacity-40"
+                alt=""
+                loading="lazy"
+                onError={() => handleImageError(item.id)}
+              />
 
-                <div className="absolute inset-0 bg-red-900/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-center text-white p-4">
-                  <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 flex flex-col items-center gap-2">
-                    {item.type === "video" ? (
-                      <>
-                        <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center">
-                          <Play size={24} fill="white" />
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest">
-                          Ver Vídeo
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center">
-                          <ImageIcon size={24} />
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest">
-                          Ver Foto
-                        </span>
-                      </>
-                    )}
-                  </div>
+              <div className="absolute inset-0 bg-red-900/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-center text-white p-4">
+                <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 flex flex-col items-center gap-2">
+                  {item.type === "video" ? (
+                    <>
+                      <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center">
+                        <Play size={24} fill="white" />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-widest">
+                        Ver Vídeo
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center">
+                        <ImageIcon size={24} />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-widest">
+                        Ver Foto
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
-            );
-          })
-        ) : (
-          <div className="col-span-full py-32 text-center text-white/10 border-2 border-dashed border-white/5 rounded-3xl">
-            <ImageIcon size={48} className="mx-auto mb-4 opacity-5" />
-            <p className="font-bold uppercase tracking-[0.3em] text-xs">
-              Novas mídias em breve
-            </p>
-          </div>
-        )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Lightbox / Modal */}
@@ -93,14 +94,14 @@ const Gallery: React.FC<GalleryProps> = ({ items }) => {
           <div className="relative max-w-5xl w-full max-h-full flex items-center justify-center">
             {selectedMedia.type === "video" ? (
               <video
-                src={selectedMedia.url}
+                src={getMediaUrl(selectedMedia.url)}
                 className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl border border-white/10"
                 controls
                 autoPlay
               />
             ) : (
               <img
-                src={selectedMedia.url}
+                src={getMediaUrl(selectedMedia.url)}
                 className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl"
                 alt=""
               />
