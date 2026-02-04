@@ -2,7 +2,7 @@ import React, { useState, useRef } from "react";
 import { Music, Play, Pause, Disc, AlertCircle } from "lucide-react";
 import Section from "../Section";
 import { Song } from "@/types";
-import { getMediaUrl } from "@/constants";
+import { getMediaUrl, PEDRO_LOPES_MUSIC_IMAGE } from "@/constants";
 
 interface MusicSectionProps {
   songs: Song[];
@@ -136,7 +136,7 @@ const MusicSection: React.FC<MusicSectionProps> = ({ songs }) => {
           <div className="absolute inset-0 bg-red-600/10 blur-[120px] rounded-full group-hover:bg-red-600/20 transition-all"></div>
           <div className="relative">
             <img
-              src="https://images.unsplash.com/photo-1598387181032-a3103a2db5b3?q=80&w=2076&auto=format&fit=crop"
+              src={PEDRO_LOPES_MUSIC_IMAGE}
               className="w-full aspect-square max-w-[500px] object-cover rounded-[60px] shadow-[0_40px_100px_rgba(0,0,0,0.5)] border-4 border-white/5"
               alt="Pedro Lopes Álbum"
             />
