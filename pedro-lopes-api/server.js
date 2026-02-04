@@ -18,34 +18,46 @@ app.use((req, res, next) => {
 });
 
 // ==========================================================
-// DIAGNÓSTICO AVANÇADO
+// CONFIGURAÇÃO DE CAMINHOS
+// ==========================================================
+const UPLOADS_ROOT =
+  process.env.NODE_ENV === "production"
+    ? path.join(__dirname, "../public_html/uploads")
+    : path.join(__dirname, "public/uploads");
+
+// Garantia de estrutura de pastas
+if (!fs.existsSync(UPLOADS_ROOT))
+  fs.mkdirSync(UPLOADS_ROOT, { recursive: true });
+["imagens", "musicas"].forEach((f) => {
+  const d = path.join(UPLOADS_ROOT, f);
+  if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
+});
+
+// IMPORTANTE: Servir os arquivos através de /api/uploads para o Nginx aceitar
+app.use("/api/uploads", express.static(UPLOADS_ROOT));
+// Manter compatibilidade local caso necessário
+app.use("/uploads", express.static(UPLOADS_ROOT));
+
+// ==========================================================
+// DIAGNÓSTICO
 // ==========================================================
 app.get("/api/debug", (req, res) => {
-  const uploadsPath =
-    process.env.NODE_ENV === "production"
-      ? path.join(__dirname, "../public_html/uploads")
-      : path.join(__dirname, "public/uploads");
-
   let writeTest = "Não testado";
   try {
-    const testFile = path.join(uploadsPath, "test.txt");
-    fs.writeFileSync(testFile, "teste de escrita " + new Date());
+    const testFile = path.join(UPLOADS_ROOT, "test.txt");
+    fs.writeFileSync(testFile, "teste " + new Date());
     fs.unlinkSync(testFile);
-    writeTest = "OK - Permissão de escrita confirmada";
+    writeTest = "OK";
   } catch (err) {
-    writeTest = "ERRO: Sem permissão de escrita - " + err.message;
+    writeTest = "ERRO: " + err.message;
   }
 
   res.json({
     status: "online",
     ambiente: process.env.NODE_ENV || "development",
-    caminho_calculado: uploadsPath,
-    pasta_existe: fs.existsSync(uploadsPath),
+    caminho_uploads: UPLOADS_ROOT,
     teste_escrita: writeTest,
-    pastas_internas: {
-      imagens: fs.existsSync(path.join(uploadsPath, "imagens")),
-      musicas: fs.existsSync(path.join(uploadsPath, "musicas")),
-    },
+    info: "Use /api/uploads/imagens/[nome] para acessar arquivos",
   });
 });
 
@@ -61,7 +73,6 @@ app.post("/api/login", async (req, res) => {
   try {
     const match = await bcrypt.compare(password, ADMIN_HASH);
     if (match) {
-      console.log("[AUTH] Login OK");
       res.json({ success: true });
     } else {
       res.status(401).json({ success: false, error: "Senha incorreta." });
@@ -74,21 +85,6 @@ app.post("/api/login", async (req, res) => {
 // ==========================================================
 // UPLOAD
 // ==========================================================
-const UPLOADS_ROOT =
-  process.env.NODE_ENV === "production"
-    ? path.join(__dirname, "../public_html/uploads")
-    : path.join(__dirname, "public/uploads");
-
-// Garantia de estrutura
-if (!fs.existsSync(UPLOADS_ROOT))
-  fs.mkdirSync(UPLOADS_ROOT, { recursive: true });
-["imagens", "musicas"].forEach((f) => {
-  const d = path.join(UPLOADS_ROOT, f);
-  if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
-});
-
-app.use("/uploads", express.static(UPLOADS_ROOT));
-
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const folder = req.body.folder || "imagens";
@@ -106,7 +102,8 @@ app.post("/api/upload", upload.single("file"), (req, res) => {
   if (!req.file)
     return res.status(400).json({ error: "Nenhum arquivo enviado." });
   const folder = req.body.folder || "imagens";
-  res.json({ url: `/uploads/${folder}/${req.file.filename}` });
+  // Retornamos a URL com o prefixo /api para o Nginx redirecionar corretamente
+  res.json({ url: `/api/uploads/${folder}/${req.file.filename}` });
 });
 
 // ==========================================================
@@ -136,4 +133,4 @@ app.post("/api/contact", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 API ON: Porta ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 API RODANDO NA PORTA: ${PORT}`));
