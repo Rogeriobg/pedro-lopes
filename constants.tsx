@@ -25,6 +25,7 @@ export const getMediaUrl = (url: string) => {
 
 export const PEDRO_LOPES_HERO_IMAGE = "/assets/02.jpeg";
 export const PEDRO_LOPES_MUSIC_IMAGE = "/assets/03.jpg";
+export const LOGO_IMAGE = "/assets/logo.png";
 
 export const INITIAL_SHOWS: Show[] = [];
 export const INITIAL_BLOG_POSTS: BlogPost[] = [];
