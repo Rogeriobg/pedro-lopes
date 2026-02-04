@@ -99,14 +99,29 @@ const Footer: React.FC = () => {
           </div>
         </div>
 
-        {/* Rodapé Final */}
-        <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-[10px] text-white/30 uppercase tracking-[0.2em]">
-            © 2025 PEDRO LOPES - Todos os direitos reservados
-          </p>
-          <p className="text-[10px] text-white/30 uppercase tracking-[0.2em]">
-            Desenvolvido com Paixão Sertaneja
-          </p>
+        {/* Rodapé Final Centralizado com Barra Vertical */}
+        <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-center items-center gap-8">
+          {/* Direitos Autorais (Esquerda do Centro) */}
+          <div className="flex flex-col items-center text-[10px] text-white/30 uppercase tracking-[0.2em] text-center min-w-fit leading-relaxed">
+            <span>© 2025 PEDRO LOPES</span>
+            <span>Todos os direitos reservados.</span>
+          </div>
+
+          {/* Barra Vertical de Separação (Aparece apenas em Desktop) */}
+          <div className="hidden md:block w-px h-10 bg-white/10"></div>
+
+          {/* Separador Horizontal Pequeno (Aparece apenas em Mobile) */}
+          <div className="md:hidden h-px w-12 bg-white/10"></div>
+
+          {/* Créditos (Direita do Centro) - Clicável para WhatsApp */}
+          <a
+            href="https://wa.me/5514996875174"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] text-white/40 font-black uppercase tracking-[0.3em] text-center hover:text-red-500 transition-colors duration-300"
+          >
+            RDS Web sites
+          </a>
         </div>
       </div>
     </footer>
