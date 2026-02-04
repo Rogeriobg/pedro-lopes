@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Menu, X, Settings } from "lucide-react";
+import { LOGO_NAV_IMAGE } from "@/constants";
 
 interface NavbarProps {
   onOpenLogin: () => void;
@@ -20,8 +21,15 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenLogin }) => {
   return (
     <>
       <nav className="fixed w-full z-50 bg-[#2D0B0B]/90 backdrop-blur-md border-b border-white/5 py-4 px-6 md:px-12 flex justify-between items-center">
-        <div className="text-2xl font-serif font-black tracking-tighter text-white">
-          PEDRO <span className="text-red-600">LOPES</span>
+        <div className="flex items-center gap-3">
+          <img
+            src={LOGO_NAV_IMAGE}
+            alt="Logo Pedro Lopes"
+            className="h-10 w-auto object-contain"
+          />
+          <div className="text-2xl font-serif font-black tracking-tighter text-white leading-none">
+            PEDRO <span className="text-red-600">LOPES</span>
+          </div>
         </div>
 
         <div className="hidden md:flex gap-8 items-center text-sm font-semibold tracking-wider uppercase text-white/80">
@@ -53,6 +61,16 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenLogin }) => {
       {/* Mobile Menu */}
       {isOpen && (
         <div className="fixed inset-0 z-40 bg-[#2D0B0B] flex flex-col items-center justify-center gap-8 text-2xl font-serif text-white">
+          <div className="flex flex-col items-center gap-4 mb-8">
+            <img
+              src={LOGO_NAV_IMAGE}
+              alt="Logo Pedro Lopes"
+              className="h-20 w-auto object-contain"
+            />
+            <div className="text-4xl font-serif font-black tracking-tighter text-white">
+              PEDRO <span className="text-red-600">LOPES</span>
+            </div>
+          </div>
           {navLinks.map((link) => (
             <a
               key={link.name}
