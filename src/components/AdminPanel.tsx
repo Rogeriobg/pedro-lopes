@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Music,
   Play,
+  AlertTriangle,
 } from "lucide-react";
 
 const Label: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -69,6 +70,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     "shows" | "blog" | "gallery" | "songs"
   >("shows");
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const [newShow, setNewShow] = useState({
     date: "",
@@ -100,25 +102,38 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     folder: "imagens" | "musicas" = "imagens",
   ) => {
     setIsUploading(true);
+    setUploadError(null);
     const formData = new FormData();
     formData.append("folder", folder);
     formData.append("file", file);
 
+    const targetUrl = `${API_BASE_URL}/api/upload`;
+    console.log(
+      `[PAINEL] Iniciando upload para: ${targetUrl} (Pasta: ${folder})`,
+    );
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/upload`, {
+      const response = await fetch(targetUrl, {
         method: "POST",
         body: formData,
       });
-      if (!response.ok) throw new Error("Falha no upload");
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[PAINEL] Erro HTTP ${response.status}:`, errorText);
+        throw new Error(
+          `Servidor respondeu com erro ${response.status}: ${errorText || "Erro desconhecido"}`,
+        );
+      }
+
       const data = await response.json();
+      console.log("[PAINEL] Upload finalizado com sucesso:", data.url);
       setIsUploading(false);
       return data.url;
-    } catch (error) {
-      console.error("Erro no upload:", error);
+    } catch (error: any) {
+      console.error("[PAINEL] Erro fatal no fetch de upload:", error);
       setIsUploading(false);
-      alert(
-        "ERRO: Não foi possível completar o upload. Verifique se o servidor backend (server.js) está rodando na porta 5000.",
-      );
+      setUploadError(error.message);
       return null;
     }
   };
@@ -150,15 +165,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       alert("Por favor, selecione e aguarde o upload do arquivo MP3 primeiro.");
       return;
     }
-
     onAddSong({
       title: newSong.title,
       duration: newSong.duration,
       spotifyUrl: newSong.spotifyUrl,
     });
-
     setNewSong({ title: "", duration: "", spotifyUrl: "" });
-    console.log("Música adicionada com sucesso!");
   };
 
   const tabs = [
@@ -188,6 +200,28 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       </header>
 
       <main className="max-w-7xl mx-auto p-8">
+        {uploadError && (
+          <div className="mb-6 p-4 bg-red-900/20 border border-red-500 rounded-2xl flex items-start gap-4 text-red-200 animate-in slide-in-from-top duration-300">
+            <AlertTriangle className="mt-1 flex-shrink-0" size={20} />
+            <div className="flex-1">
+              <p className="font-bold text-xs uppercase tracking-widest">
+                Falha Crítica de Conexão
+              </p>
+              <p className="text-sm opacity-80 mt-1">{uploadError}</p>
+              <p className="text-[10px] mt-2 opacity-50 italic">
+                Verifique se o Nginx está permitindo arquivos grandes ou se a
+                API está online em /api/debug
+              </p>
+            </div>
+            <button
+              onClick={() => setUploadError(null)}
+              className="text-[10px] bg-white/10 px-3 py-1 rounded-lg uppercase font-bold"
+            >
+              Fechar
+            </button>
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2 mb-8 bg-white/5 p-1.5 rounded-2xl w-fit">
           {tabs.map((tab) => (
             <button
@@ -340,17 +374,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           )}
 
           {activeTab === "songs" && (
-            <div
-              key="tab-songs-content"
-              className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500"
-            >
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500">
               <div className="lg:col-span-4 bg-[#1a1a1a] p-8 rounded-3xl border border-white/5 shadow-xl h-fit">
                 <h2 className="text-lg font-bold mb-6 text-red-600 uppercase tracking-tighter">
                   Gerenciar Músicas
                 </h2>
-                <p className="text-[10px] text-gray-500 mb-6 font-bold uppercase tracking-widest">
-                  O áudio será salvo em public/uploads/musicas
-                </p>
                 <form onSubmit={handleAddSong} className="space-y-4">
                   <div>
                     <Label>Título da Música</Label>
@@ -374,7 +402,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       }
                     />
                   </div>
-
                   <div>
                     <Label>Arquivo de Áudio (MP3)</Label>
                     <div className="relative group">
@@ -406,7 +433,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                     </div>
                   </div>
-
                   <button
                     type="submit"
                     disabled={!newSong.spotifyUrl}
@@ -419,7 +445,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="lg:col-span-8 bg-[#1a1a1a] p-8 rounded-3xl border border-white/5 shadow-xl">
                 <h2 className="text-lg font-bold mb-6">Músicas Disponíveis</h2>
                 <div className="space-y-3">
-                  {songs && songs.length > 0 ? (
+                  {songs.length > 0 ? (
                     songs.map((song) => (
                       <div
                         key={song.id}
@@ -479,71 +505,53 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   }}
                   className="space-y-4"
                 >
-                  <div>
-                    <Label>Título</Label>
-                    <Input
-                      type="text"
-                      required
-                      value={newPost.title}
-                      onChange={(e: any) =>
-                        setNewPost({ ...newPost, title: e.target.value })
-                      }
+                  <Input
+                    placeholder="Título"
+                    required
+                    value={newPost.title}
+                    onChange={(e: any) =>
+                      setNewPost({ ...newPost, title: e.target.value })
+                    }
+                  />
+                  <div className="relative h-40 bg-black/40 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center overflow-hidden">
+                    {newPost.imageUrl ? (
+                      <img
+                        src={newPost.imageUrl}
+                        className="w-full h-full object-cover"
+                        alt=""
+                      />
+                    ) : (
+                      <>
+                        <Upload size={24} className="text-gray-600 mb-2" />
+                        <span className="text-[10px] uppercase font-bold text-gray-600">
+                          Selecionar foto
+                        </span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                      onChange={(e) => handleFileChange(e, "post")}
                     />
                   </div>
-                  <div>
-                    <Label>Foto do Post</Label>
-                    <div className="relative group">
-                      <div className="w-full h-40 bg-black/40 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center overflow-hidden">
-                        {newPost.imageUrl ? (
-                          <div className="relative w-full h-full">
-                            <img
-                              src={newPost.imageUrl}
-                              className="w-full h-full object-cover"
-                              alt=""
-                            />
-                            <div className="absolute top-2 right-2 bg-green-500 p-1 rounded-full">
-                              <CheckCircle2 size={16} className="text-white" />
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <Upload size={24} className="text-gray-600 mb-2" />
-                            <span className="text-[10px] uppercase font-bold text-gray-600">
-                              Selecionar arquivo
-                            </span>
-                          </>
-                        )}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="absolute inset-0 opacity-0 cursor-pointer"
-                          onChange={(e) => handleFileChange(e, "post")}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Data da Notícia</Label>
-                    <Input
-                      type="date"
-                      required
-                      value={newPost.date}
-                      onChange={(e: any) =>
-                        setNewPost({ ...newPost, date: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label>Conteúdo Completo</Label>
-                    <Input
-                      type="textarea"
-                      rows={6}
-                      value={newPost.content}
-                      onChange={(e: any) =>
-                        setNewPost({ ...newPost, content: e.target.value })
-                      }
-                    />
-                  </div>
+                  <Input
+                    type="date"
+                    required
+                    value={newPost.date}
+                    onChange={(e: any) =>
+                      setNewPost({ ...newPost, date: e.target.value })
+                    }
+                  />
+                  <Input
+                    type="textarea"
+                    placeholder="Conteúdo..."
+                    rows={6}
+                    value={newPost.content}
+                    onChange={(e: any) =>
+                      setNewPost({ ...newPost, content: e.target.value })
+                    }
+                  />
                   <button
                     type="submit"
                     disabled={!newPost.imageUrl}
@@ -554,7 +562,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </form>
               </div>
               <div className="lg:col-span-7 bg-[#1a1a1a] p-8 rounded-3xl border border-white/5 shadow-xl">
-                <h2 className="text-lg font-bold mb-6">Lista de Posts</h2>
+                <h2 className="text-lg font-bold mb-6">Posts Atuais</h2>
                 <div className="space-y-4">
                   {posts.map((post) => (
                     <div
@@ -590,130 +598,105 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           {activeTab === "gallery" && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-500">
               <div className="lg:col-span-4 bg-[#1a1a1a] p-8 rounded-3xl border border-white/5 shadow-xl h-fit">
-                <h2 className="text-lg font-bold mb-6 text-red-600">
-                  Upload Galeria
-                </h2>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
+                <h2 className="text-lg font-bold mb-6 text-red-600">Galeria</h2>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setNewItem({ ...newItem, type: "image" })}
+                    className={`py-3 rounded-xl border text-[10px] font-black ${newItem.type === "image" ? "bg-red-700 border-red-700 text-white" : "border-white/5 text-gray-600"}`}
+                  >
+                    FOTO
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewItem({ ...newItem, type: "video" })}
+                    className={`py-3 rounded-xl border text-[10px] font-black ${newItem.type === "video" ? "bg-red-700 border-red-700 text-white" : "border-white/5 text-gray-600"}`}
+                  >
+                    VÍDEO
+                  </button>
+                </div>
+                <div className="relative aspect-video bg-black/40 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center overflow-hidden group">
+                  {newItem.url ? (
+                    newItem.type === "image" ? (
+                      <img
+                        src={newItem.url}
+                        className="w-full h-full object-cover"
+                        alt=""
+                      />
+                    ) : (
+                      <video
+                        src={newItem.url}
+                        className="w-full h-full object-cover"
+                      />
+                    )
+                  ) : (
+                    <>
+                      <Upload size={32} className="text-gray-600 mb-2" />
+                      <span className="text-[10px] uppercase font-black text-gray-600">
+                        Escolher {newItem.type === "image" ? "Foto" : "Vídeo"}
+                      </span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept={newItem.type === "image" ? "image/*" : "video/*"}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    onChange={(e) => handleFileChange(e, "gallery")}
+                  />
+                </div>
+                {newItem.type === "video" && (
+                  <div className="mt-4">
+                    <Label>Capa do Vídeo (Thumbnail)</Label>
+                    <div className="relative h-24 bg-black/40 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center overflow-hidden">
+                      {newItem.thumbnail ? (
+                        <img
+                          src={newItem.thumbnail}
+                          className="w-full h-full object-cover"
+                          alt=""
+                        />
+                      ) : (
+                        <Upload size={16} />
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        onChange={(e) => handleFileChange(e, "thumb")}
+                      />
+                    </div>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
                     onAddGalleryItem(newItem);
                     setNewItem({ type: "image", url: "", thumbnail: "" });
                   }}
-                  className="space-y-4"
+                  disabled={!newItem.url}
+                  className="w-full mt-6 py-4 bg-red-700 rounded-xl font-black uppercase tracking-widest transition-all"
                 >
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setNewItem({ ...newItem, type: "image" })}
-                      className={`py-3 rounded-xl border text-[10px] font-black ${newItem.type === "image" ? "bg-red-700 border-red-700 text-white" : "border-white/5 text-gray-600"}`}
-                    >
-                      FOTO
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setNewItem({ ...newItem, type: "video" })}
-                      className={`py-3 rounded-xl border text-[10px] font-black ${newItem.type === "video" ? "bg-red-700 border-red-700 text-white" : "border-white/5 text-gray-600"}`}
-                    >
-                      VÍDEO
-                    </button>
-                  </div>
-
-                  <div className="relative aspect-video bg-black/40 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center overflow-hidden group">
-                    {newItem.url ? (
-                      <div className="relative w-full h-full">
-                        {newItem.type === "image" ? (
-                          <img
-                            src={newItem.url}
-                            className="w-full h-full object-cover"
-                            alt=""
-                          />
-                        ) : (
-                          <video
-                            src={newItem.url}
-                            className="w-full h-full object-cover"
-                            muted
-                          />
-                        )}
-                        <div className="absolute inset-0 bg-green-500/20 flex flex-col items-center justify-center">
-                          <CheckCircle2
-                            size={32}
-                            className="text-green-500 mb-2 drop-shadow-lg"
-                          />
-                          <span className="text-[10px] font-black uppercase text-white bg-black/60 px-2 py-1 rounded">
-                            Upload Concluído!
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <Upload size={32} className="text-gray-600 mb-2" />
-                        <span className="text-[10px] uppercase font-black text-gray-600">
-                          Escolher {newItem.type === "image" ? "Foto" : "Vídeo"}
-                        </span>
-                      </>
-                    )}
-                    <input
-                      type="file"
-                      accept={newItem.type === "image" ? "image/*" : "video/*"}
-                      className="absolute inset-0 opacity-0 cursor-pointer"
-                      onChange={(e) => handleFileChange(e, "gallery")}
-                    />
-                  </div>
-
-                  {newItem.type === "video" && (
-                    <div>
-                      <Label>Capa do Vídeo (Thumbnail)</Label>
-                      <div className="relative h-24 bg-black/40 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center overflow-hidden">
-                        {newItem.thumbnail ? (
-                          <img
-                            src={newItem.thumbnail}
-                            className="w-full h-full object-cover"
-                            alt=""
-                          />
-                        ) : (
-                          <Upload size={16} />
-                        )}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="absolute inset-0 opacity-0 cursor-pointer"
-                          onChange={(e) => handleFileChange(e, "thumb")}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={!newItem.url}
-                    className={`w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all ${!newItem.url ? "bg-gray-800 text-gray-500" : "bg-red-700 shadow-lg shadow-red-900/40"}`}
-                  >
-                    Adicionar à Galeria
-                  </button>
-                </form>
+                  Adicionar
+                </button>
               </div>
-              <div className="lg:col-span-8 bg-[#1a1a1a] p-8 rounded-3xl border border-white/5 shadow-xl">
-                <h2 className="text-lg font-bold mb-6">Mídias Publicadas</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {galleryItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="relative aspect-square bg-black rounded-2xl overflow-hidden group border border-white/5"
+              <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {galleryItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="relative aspect-square bg-black rounded-2xl overflow-hidden group border border-white/5"
+                  >
+                    <img
+                      src={item.type === "video" ? item.thumbnail : item.url}
+                      className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition duration-500"
+                      alt=""
+                    />
+                    <button
+                      onClick={() => onDeleteGalleryItem(item.id)}
+                      className="absolute top-2 right-2 bg-red-700 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition shadow-xl"
                     >
-                      <img
-                        src={item.type === "video" ? item.thumbnail : item.url}
-                        className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition duration-500"
-                        alt=""
-                      />
-                      <button
-                        onClick={() => onDeleteGalleryItem(item.id)}
-                        className="absolute top-2 right-2 bg-red-700 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition shadow-xl"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           )}
