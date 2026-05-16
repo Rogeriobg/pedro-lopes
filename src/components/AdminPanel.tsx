@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { Show, BlogPost, GalleryItem, Song } from "@/types";
-import { API_BASE_URL } from "@/constants";
+import { API_BASE_URL, getMediaUrl } from "@/constants";
 import {
   Trash2,
+  Pencil,
   LogOut,
   Calendar,
   FileText,
@@ -42,15 +43,26 @@ interface AdminPanelProps {
   songs: Song[];
 
   onAddShow: (show: Omit<Show, "id">) => void;
+
   onDeleteShow: (id: string) => void;
 
+  onEditShow: (id: string, show: Omit<Show, "id">) => Promise<void>;
+
   onAddPost: (post: Omit<BlogPost, "id" | "likes" | "loves">) => void;
+
   onDeletePost: (id: string) => void;
 
+  onEditPost: (
+    id: string,
+    post: Omit<BlogPost, "id" | "likes" | "loves">,
+  ) => void;
+
   onAddGalleryItem: (item: Omit<GalleryItem, "id">) => void;
+
   onDeleteGalleryItem: (id: string) => void;
 
   onAddSong: (song: Omit<Song, "id">) => void;
+
   onDeleteSong: (id: string) => void;
 
   onLogout: () => void;
@@ -63,8 +75,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   songs = [],
   onAddShow,
   onDeleteShow,
+  onEditShow,
+
   onAddPost,
   onDeletePost,
+  onEditPost,
+
   onAddGalleryItem,
   onDeleteGalleryItem,
   onAddSong,
@@ -74,6 +90,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [activeTab, setActiveTab] = useState<
     "shows" | "blog" | "gallery" | "songs"
   >("shows");
+  const [editingShowId, setEditingShowId] = useState<string | null>(null);
+
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -101,6 +121,31 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     duration: "",
     spotifyUrl: "",
   });
+
+  const handleEditShow = async (id: string, updatedShow: Omit<Show, "id">) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(`${API_BASE_URL}/api/data/shows/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updatedShow),
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao atualizar show");
+      }
+
+      const data = await response.json();
+
+      console.log("Show atualizado:", data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const uploadFile = async (
     file: File,
@@ -263,9 +308,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   Novo Show
                 </h2>
                 <form
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
-                    onAddShow(newShow);
+
+                    if (editingShowId) {
+                      await handleEditShow(editingShowId, newShow);
+
+                      setEditingShowId(null);
+                    } else {
+                      onAddShow(newShow);
+                    }
+
                     setNewShow({
                       date: "",
                       time: "",
@@ -288,6 +341,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         }
                       />
                     </div>
+
                     <div>
                       <Label>Hora</Label>
                       <Input
@@ -300,6 +354,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       />
                     </div>
                   </div>
+
                   <div>
                     <Label>Cidade</Label>
                     <Input
@@ -312,6 +367,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       }
                     />
                   </div>
+
                   <div className="grid grid-cols-3 gap-4">
                     <div className="col-span-1">
                       <Label>UF</Label>
@@ -326,6 +382,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         }
                       />
                     </div>
+
                     <div className="col-span-2">
                       <Label>Local</Label>
                       <Input
@@ -339,11 +396,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       />
                     </div>
                   </div>
+
                   <button
                     type="submit"
                     className="w-full bg-red-700 hover:bg-red-600 text-white py-4 rounded-xl font-black uppercase tracking-widest transition-all"
                   >
-                    Salvar Show
+                    {editingShowId ? "Atualizar Show" : "Salvar Show"}
                   </button>
                 </form>
               </div>
@@ -361,21 +419,46 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             {new Date(show.date).getUTCDate()}
                           </p>
                         </div>
+
                         <div>
                           <p className="font-bold text-sm uppercase tracking-wide">
                             {show.city}, {show.state}
                           </p>
+
                           <p className="text-[10px] text-gray-500 uppercase font-bold">
                             {show.venue} • {show.time}
                           </p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => onDeleteShow(show.id)}
-                        className="p-3 text-gray-600 hover:text-red-500 transition-colors"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+
+                      {/* BOTÕES */}
+                      <div className="flex items-center gap-2">
+                        {/* EDITAR */}
+                        <button
+                          onClick={() => {
+                            setEditingShowId(show.id);
+
+                            setNewShow({
+                              date: show.date,
+                              time: show.time,
+                              city: show.city,
+                              state: show.state,
+                              venue: show.venue,
+                            });
+                          }}
+                          className="p-3 text-gray-600 hover:text-blue-400 transition-colors"
+                        >
+                          <Pencil size={18} />
+                        </button>
+
+                        {/* DELETAR */}
+                        <button
+                          onClick={() => onDeleteShow(show.id)}
+                          className="p-3 text-gray-600 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -502,9 +585,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   Nova Notícia
                 </h2>
                 <form
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
-                    onAddPost(newPost);
+
+                    if (editingPostId) {
+                      await onEditPost(editingPostId, newPost);
+
+                      setEditingPostId(null);
+                    } else {
+                      await onAddPost(newPost);
+                    }
+
                     setNewPost({
                       title: "",
                       excerpt: "",
@@ -526,7 +617,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <div className="relative h-40 bg-black/40 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center overflow-hidden">
                     {newPost.imageUrl ? (
                       <img
-                        src={newPost.imageUrl}
+                        src={getMediaUrl(newPost.imageUrl)}
                         className="w-full h-full object-cover"
                         alt=""
                       />
@@ -565,9 +656,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <button
                     type="submit"
                     disabled={!newPost.imageUrl}
-                    className={`w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all ${!newPost.imageUrl ? "bg-gray-800 text-gray-500" : "bg-red-700 shadow-lg shadow-red-900/40"}`}
+                    className={`w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all ${
+                      !newPost.imageUrl
+                        ? "bg-gray-800 text-gray-500"
+                        : "bg-red-700 shadow-lg shadow-red-900/40 hover:bg-red-600"
+                    }`}
                   >
-                    Publicar no Blog
+                    {editingPostId ? "Atualizar Post" : "Publicar no Blog"}
                   </button>
                 </form>
               </div>
@@ -580,7 +675,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       className="flex gap-4 items-center bg-black/30 p-3 rounded-2xl border border-white/5"
                     >
                       <img
-                        src={post.imageUrl}
+                        src={getMediaUrl(post.imageUrl)}
                         className="w-16 h-16 rounded-xl object-cover bg-black"
                         alt=""
                       />
@@ -592,12 +687,33 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           {post.date}
                         </p>
                       </div>
-                      <button
-                        onClick={() => onDeletePost(post.id)}
-                        className="text-gray-600 hover:text-red-500 p-2"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {/* EDITAR */}
+                        <button
+                          onClick={() => {
+                            setEditingPostId(post.id);
+
+                            setNewPost({
+                              title: post.title,
+                              excerpt: post.excerpt || "",
+                              content: post.content,
+                              date: post.date,
+                              imageUrl: post.imageUrl,
+                            });
+                          }}
+                          className="text-gray-600 hover:text-blue-400 p-2"
+                        >
+                          <Pencil size={18} />
+                        </button>
+
+                        {/* DELETAR */}
+                        <button
+                          onClick={() => onDeletePost(post.id)}
+                          className="text-gray-600 hover:text-red-500 p-2"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -629,13 +745,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   {newItem.url ? (
                     newItem.type === "image" ? (
                       <img
-                        src={newItem.url}
+                        src={getMediaUrl(newItem.url)}
                         className="w-full h-full object-cover"
                         alt=""
                       />
                     ) : (
                       <video
-                        src={newItem.url}
+                        src={getMediaUrl(newItem.url)}
                         className="w-full h-full object-cover"
                       />
                     )
@@ -660,7 +776,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div className="relative h-24 bg-black/40 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center overflow-hidden">
                       {newItem.thumbnail ? (
                         <img
-                          src={newItem.thumbnail}
+                          src={getMediaUrl(newItem.thumbnail)}
                           className="w-full h-full object-cover"
                           alt=""
                         />
@@ -695,8 +811,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     className="relative aspect-square bg-black rounded-2xl overflow-hidden group border border-white/5"
                   >
                     <img
-                      src={item.type === "video" ? item.thumbnail : item.url}
-                      className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition duration-500"
+                      src={getMediaUrl(
+                        item.type === "video"
+                          ? item.thumbnail || ""
+                          : item.url || "",
+                      )}
+                      className="w-full h-full object-contain opacity-60 group-hover:opacity-100 transition duration-500 bg-black"
                       alt=""
                     />
                     <button

@@ -158,6 +158,47 @@ const App: React.FC = () => {
     }
   };
 
+  const editData = async (
+    collection: string,
+    id: string,
+    updatedItem: any,
+    setState: Function,
+  ) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/data/${collection}/${id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(updatedItem),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Erro ao atualizar");
+      }
+
+      const data = await response.json();
+
+      setState((prev: any) =>
+        prev.map((item: any) =>
+          String(item.id) === String(id) ? data.item : item,
+        ),
+      );
+
+      console.log(`${collection} atualizado com sucesso`);
+    } catch (err) {
+      console.error(err);
+
+      alert("Erro ao atualizar.");
+    }
+  };
+
   const toggleLike = (postId: string) => {
     setPosts((prev) =>
       prev.map((p) => (p.id === postId ? { ...p, likes: p.likes + 1 } : p)),
@@ -177,13 +218,78 @@ const App: React.FC = () => {
         posts={posts}
         galleryItems={galleryItems}
         songs={songs}
-        // Todas as ações agora chamam a API
+        // SHOWS
         onAddShow={(s) => addData("shows", s, setShows)}
         onDeleteShow={(id) => deleteData("shows", id, setShows)}
+        onEditShow={async (id, updatedShow) => {
+          try {
+            const token = localStorage.getItem("token");
+
+            const response = await fetch(
+              `${API_BASE_URL}/api/data/shows/${id}`,
+              {
+                method: "PUT",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(updatedShow),
+              },
+            );
+
+            if (!response.ok) {
+              throw new Error("Erro ao atualizar show");
+            }
+
+            const data = await response.json();
+
+            setShows((prev) =>
+              prev.map((show) => (show.id === id ? data.item : show)),
+            );
+          } catch (error) {
+            console.error(error);
+
+            alert("Erro ao atualizar show");
+          }
+        }}
+        // POSTS
         onAddPost={(p) => addData("posts", p, setPosts)}
         onDeletePost={(id) => deleteData("posts", id, setPosts)}
+        onEditPost={async (id, updatedPost) => {
+          try {
+            const token = localStorage.getItem("token");
+
+            const response = await fetch(
+              `${API_BASE_URL}/api/data/posts/${id}`,
+              {
+                method: "PUT",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(updatedPost),
+              },
+            );
+
+            if (!response.ok) {
+              throw new Error("Erro ao atualizar post");
+            }
+
+            const data = await response.json();
+
+            setPosts((prev) =>
+              prev.map((post) => (post.id === id ? data.item : post)),
+            );
+          } catch (error) {
+            console.error(error);
+
+            alert("Erro ao atualizar post");
+          }
+        }}
+        // GALERIA
         onAddGalleryItem={(i) => addData("gallery", i, setGalleryItems)}
         onDeleteGalleryItem={(id) => deleteData("gallery", id, setGalleryItems)}
+        // MÚSICAS
         onAddSong={(s) => addData("songs", s, setSongs)}
         onDeleteSong={(id) => deleteData("songs", id, setSongs)}
         onLogout={() => {

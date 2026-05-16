@@ -215,6 +215,54 @@ app.post("/api/data/:collection", authMiddleware, (req, res) => {
   }
 });
 
+app.put("/api/data/:collection/:id", authMiddleware, (req, res) => {
+  const { collection, id } = req.params;
+
+  const updatedItem = req.body;
+
+  try {
+    const db = readDB();
+
+    if (!db[collection]) {
+      return res.status(404).json({
+        success: false,
+        error: "Coleção não encontrada",
+      });
+    }
+
+    const index = db[collection].findIndex(
+      (item) => String(item.id) === String(id),
+    );
+
+    if (index === -1) {
+      return res.status(404).json({
+        success: false,
+        error: "Item não encontrado",
+      });
+    }
+
+    db[collection][index] = {
+      ...db[collection][index],
+      ...updatedItem,
+      id,
+    };
+
+    writeDB(db);
+
+    res.json({
+      success: true,
+      item: db[collection][index],
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      success: false,
+      error: "Erro ao atualizar item",
+    });
+  }
+});
+
 app.delete("/api/data/:collection/:id", authMiddleware, (req, res) => {
   const { collection, id } = req.params;
 

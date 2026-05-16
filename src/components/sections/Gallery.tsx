@@ -34,7 +34,7 @@ const Gallery: React.FC<GalleryProps> = ({ items }) => {
 
   return (
     <Section id="gallery" title="Galeria">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {validItems.map((item) => {
           const displayUrl = getMediaUrl(
             item.type === "video" ? item.thumbnail || item.url : item.url,
@@ -44,7 +44,7 @@ const Gallery: React.FC<GalleryProps> = ({ items }) => {
             <div
               key={item.id}
               onClick={() => setSelectedMedia(item)}
-              className="relative aspect-square overflow-hidden rounded-2xl group cursor-pointer shadow-lg bg-black/20 border border-white/5 flex items-center justify-center"
+              className="relative h-64 sm:h-72 md:aspect-square overflow-hidden rounded-2xl group cursor-pointer shadow-lg bg-black/20 border border-white/5 flex items-center justify-center"
             >
               <img
                 src={displayUrl}

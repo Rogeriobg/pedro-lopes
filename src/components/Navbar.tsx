@@ -32,7 +32,7 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenLogin }) => {
           </div>
         </div>
 
-        <div className="hidden md:flex gap-8 items-center text-sm font-semibold tracking-wider uppercase text-white/80">
+        <div className="hidden lg:flex gap-6 items-center text-sm font-semibold tracking-wider uppercase text-white/80">
           {navLinks.map((link) => (
             <a
               key={link.name}
@@ -49,9 +49,8 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenLogin }) => {
             <Settings size={20} />
           </button>
         </div>
-
         <button
-          className="md:hidden text-white"
+          className="lg:hidden text-white"
           onClick={() => setIsOpen(!isOpen)}
         >
           {isOpen ? <X /> : <Menu />}
