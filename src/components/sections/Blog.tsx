@@ -38,10 +38,11 @@ const Blog: React.FC<BlogProps> = ({ posts, onLike, onLove, onReadMore }) => {
               <div className="relative h-64 overflow-hidden bg-black flex items-center justify-center">
                 <img
                   src={getMediaUrl(post.imageUrl)}
-                  className="w-full h-full object-cover transition duration-500 hover:scale-105"
+                  className="w-full h-full object-contain transition duration-500 hover:scale-105"
                   alt=""
                   onError={() => handleImageError(post.id)}
                 />
+
                 <div className="absolute top-4 left-4">
                   <span className="bg-red-700 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-lg">
                     {new Date(post.date).toLocaleDateString("pt-BR", {

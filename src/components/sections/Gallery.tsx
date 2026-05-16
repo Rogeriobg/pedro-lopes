@@ -18,32 +18,37 @@ const Gallery: React.FC<GalleryProps> = ({ items }) => {
 
   // Filtragem rigorosa: só mostra o que tem URL e NÃO deu erro de carregamento
   const validItems = items.filter((item) => {
-    if (!item.url || item.url.trim() === "") return false;
+    if (!item) return false;
+
+    if (!item.url) return false;
+
     if (errorImages[item.id]) return false;
-    if (item.type === "video" && !item.thumbnail) return false;
+
     return true;
   });
 
   // Se não houver itens válidos, não renderizamos a seção para não deixar espaços vazios
   if (validItems.length === 0) return null;
+  console.log("ITEMS GALERIA:", items);
+  console.log("VALID ITEMS:", validItems);
 
   return (
     <Section id="gallery" title="Galeria">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {validItems.map((item) => {
           const displayUrl = getMediaUrl(
-            item.type === "video" ? item.thumbnail || "" : item.url,
+            item.type === "video" ? item.thumbnail || item.url : item.url,
           );
 
           return (
             <div
               key={item.id}
               onClick={() => setSelectedMedia(item)}
-              className="relative aspect-square overflow-hidden rounded-2xl group cursor-pointer shadow-lg bg-black/20 border border-white/5"
+              className="relative aspect-square overflow-hidden rounded-2xl group cursor-pointer shadow-lg bg-black/20 border border-white/5 flex items-center justify-center"
             >
               <img
                 src={displayUrl}
-                className="w-full h-full object-cover transition duration-700 group-hover:scale-110 group-hover:opacity-40"
+                className="w-full h-full object-contain transition duration-700 group-hover:scale-105 group-hover:opacity-40"
                 alt=""
                 loading="lazy"
                 onError={() => handleImageError(item.id)}
@@ -56,6 +61,7 @@ const Gallery: React.FC<GalleryProps> = ({ items }) => {
                       <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center">
                         <Play size={24} fill="white" />
                       </div>
+
                       <span className="text-[10px] font-black uppercase tracking-widest">
                         Ver Vídeo
                       </span>
@@ -65,6 +71,7 @@ const Gallery: React.FC<GalleryProps> = ({ items }) => {
                       <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center">
                         <ImageIcon size={24} />
                       </div>
+
                       <span className="text-[10px] font-black uppercase tracking-widest">
                         Ver Foto
                       </span>
@@ -98,12 +105,20 @@ const Gallery: React.FC<GalleryProps> = ({ items }) => {
                 className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl border border-white/10"
                 controls
                 autoPlay
+                onError={() => {
+                  alert("Erro ao carregar vídeo.");
+                  setSelectedMedia(null);
+                }}
               />
             ) : (
               <img
                 src={getMediaUrl(selectedMedia.url)}
                 className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl"
                 alt=""
+                onError={() => {
+                  alert("Erro ao carregar imagem.");
+                  setSelectedMedia(null);
+                }}
               />
             )}
           </div>

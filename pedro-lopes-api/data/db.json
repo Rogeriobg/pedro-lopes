@@ -1,0 +1,78 @@
+{
+  "shows": [
+    {
+      "date": "2026-05-12",
+      "time": "12:00",
+      "city": "Salto",
+      "state": "sp",
+      "venue": "Chapéu Brasil",
+      "id": "1778905965640"
+    },
+    {
+      "date": "2026-04-11",
+      "time": "13:30",
+      "city": "Jacarezinho",
+      "state": "pr",
+      "venue": "Celeiro Pub",
+      "id": "1778888869456"
+    },
+    {
+      "date": "2026-04-11",
+      "time": "20:00",
+      "city": "Salto Grande",
+      "state": "sp",
+      "venue": "adorella ",
+      "id": "1778888814159"
+    },
+    {
+      "date": "2026-04-04",
+      "time": "20:00",
+      "city": "ourinhos",
+      "state": "sp",
+      "venue": "Tia Lú",
+      "id": "1778888751361"
+    },
+    {
+      "date": "2026-04-04",
+      "time": "16:00",
+      "city": "Ourinhos",
+      "state": "sp",
+      "venue": "Evento particular",
+      "id": "1778888702863"
+    },
+    {
+      "date": "2026-04-02",
+      "time": "22:00",
+      "city": "Jacarezinho",
+      "state": "pr",
+      "venue": "Dallas Texas",
+      "id": "1778888538687"
+    }
+  ],
+  "posts": [
+    {
+      "title": "História da gravação da Música Nunca diga nunca",
+      "excerpt": "",
+      "content": "Essa música foi composta por Thiago Marcelo, Augusto Menezes, e Léo e interpretada pelo Cantor Pedro Lopes",
+      "date": "2024-12-12",
+      "imageUrl": "/api/uploads/imagens/1778903764805-262631660.jpeg",
+      "id": "1778903907084"
+    }
+  ],
+  "gallery": [
+    {
+      "type": "image",
+      "url": "/api/uploads/imagens/1778889157856-786630106.png",
+      "thumbnail": "",
+      "id": "1778889160179"
+    }
+  ],
+  "songs": [
+    {
+      "title": "Nunca Diga Nunca",
+      "duration": "2:25",
+      "spotifyUrl": "/api/uploads/musicas/1778904027970-474597704.mp3",
+      "id": "1778904035677"
+    }
+  ]
+}

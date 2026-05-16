@@ -11,44 +11,87 @@ interface MusicSectionProps {
 const MusicSection: React.FC<MusicSectionProps> = ({ songs }) => {
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [audioError, setAudioError] = useState<string | null>(null);
+  const [loadingSongId, setLoadingSongId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const togglePlay = (song: Song) => {
+  const togglePlay = async (song: Song) => {
     if (!audioRef.current) return;
+
     setAudioError(null);
+
+    // ======================================================
+    // PAUSAR MÚSICA ATUAL
+    // ======================================================
 
     if (playingId === song.id) {
       audioRef.current.pause();
+
       setPlayingId(null);
-    } else {
-      try {
-        // Verifica se a URL é válida antes de tentar tocar
-        if (
-          !song.spotifyUrl ||
-          song.spotifyUrl === "#" ||
-          song.spotifyUrl === ""
-        ) {
-          setAudioError("Arquivo de áudio não encontrado para esta música.");
-          return;
-        }
 
-        audioRef.current.src = getMediaUrl(song.spotifyUrl);
-        const playPromise = audioRef.current.play();
+      return;
+    }
 
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              setPlayingId(song.id);
-            })
-            .catch((error) => {
-              console.error("Erro ao reproduzir áudio:", error);
-              setAudioError("Não foi possível reproduzir este arquivo.");
-              setPlayingId(null);
-            });
-        }
-      } catch (err) {
-        setAudioError("Erro inesperado no player.");
+    try {
+      // ======================================================
+      // VALIDA URL
+      // ======================================================
+
+      if (!song.spotifyUrl || song.spotifyUrl.trim() === "") {
+        setAudioError("Arquivo de áudio não encontrado.");
+
+        return;
       }
+
+      // ======================================================
+      // LOADING
+      // ======================================================
+
+      setLoadingSongId(song.id);
+
+      // ======================================================
+      // URL FINAL
+      // ======================================================
+
+      const audioUrl = getMediaUrl(song.spotifyUrl);
+
+      // ======================================================
+      // RESET PLAYER
+      // ======================================================
+
+      audioRef.current.pause();
+
+      audioRef.current.currentTime = 0;
+
+      audioRef.current.src = audioUrl;
+
+      // força recarregamento do áudio
+      audioRef.current.load();
+
+      // ======================================================
+      // PLAY
+      // ======================================================
+
+      await audioRef.current.play();
+
+      // ======================================================
+      // SUCESSO
+      // ======================================================
+
+      setPlayingId(song.id);
+
+      setAudioError(null);
+    } catch (error) {
+      console.error("Erro ao reproduzir:", error);
+
+      setAudioError("Não foi possível reproduzir esta música.");
+
+      setPlayingId(null);
+    } finally {
+      // ======================================================
+      // FINALIZA LOADING
+      // ======================================================
+
+      setLoadingSongId(null);
     }
   };
 
@@ -56,10 +99,21 @@ const MusicSection: React.FC<MusicSectionProps> = ({ songs }) => {
     <Section id="music" title="Minhas Músicas">
       <audio
         ref={audioRef}
+        preload="metadata"
         onEnded={() => setPlayingId(null)}
-        onError={() => {
-          setAudioError("Erro ao carregar o arquivo de música.");
+        onPause={() => {
+          if (!audioRef.current?.ended) {
+            setPlayingId(null);
+          }
+        }}
+        onError={(e) => {
+          console.error("Erro audio:", e);
+
+          setAudioError("Erro ao carregar o arquivo de áudio.");
+
           setPlayingId(null);
+
+          setLoadingSongId(null);
         }}
         className="hidden"
       />
@@ -87,11 +141,15 @@ const MusicSection: React.FC<MusicSectionProps> = ({ songs }) => {
                   <div className="flex items-center gap-6">
                     <div className="relative w-8 h-8 flex items-center justify-center">
                       <span
-                        className={`text-2xl font-black italic transition-opacity absolute ${playingId === song.id ? "opacity-0" : "opacity-20 text-white"}`}
+                        className={`text-2xl font-black italic transition-opacity absolute ${
+                          playingId === song.id || loadingSongId === song.id
+                            ? "opacity-0"
+                            : "opacity-20 text-white"
+                        }`}
                       >
                         {String(i + 1).padStart(2, "0")}
                       </span>
-                      {playingId === song.id && (
+                      {(playingId === song.id || loadingSongId === song.id) && (
                         <Disc className="text-red-600 animate-spin" size={24} />
                       )}
                     </div>
@@ -110,9 +168,15 @@ const MusicSection: React.FC<MusicSectionProps> = ({ songs }) => {
                       {song.duration}
                     </span>
                     <button
-                      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${playingId === song.id ? "bg-red-700 text-white shadow-lg shadow-red-900/50" : "bg-white/10 text-white group-hover:bg-red-700"}`}
+                      className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+                        playingId === song.id
+                          ? "bg-red-700 text-white shadow-lg shadow-red-900/50"
+                          : "bg-white/10 text-white group-hover:bg-red-700"
+                      }`}
                     >
-                      {playingId === song.id ? (
+                      {loadingSongId === song.id ? (
+                        <Disc className="animate-spin" size={18} />
+                      ) : playingId === song.id ? (
                         <Pause size={20} fill="currentColor" />
                       ) : (
                         <Play size={20} fill="currentColor" className="ml-1" />

@@ -40,9 +40,13 @@ const App: React.FC = () => {
     const fetchData = async () => {
       try {
         const response = await fetch(`${API_BASE_URL}/api/data`);
+
         if (response.ok) {
           const data = await response.json();
-          // Atualiza os estados com o que veio do db.json da VPS
+
+          console.log("DADOS DA API:", data);
+          console.log("GALERIA:", data.gallery);
+
           setShows(data.shows || []);
           setPosts(data.posts || []);
           setGalleryItems(data.gallery || []);
@@ -54,6 +58,7 @@ const App: React.FC = () => {
         setIsLoadingData(false);
       }
     };
+
     fetchData();
   }, []);
 
@@ -63,11 +68,16 @@ const App: React.FC = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
         body: JSON.stringify({ password: loginPass }),
       });
       const data = await response.json();
       if (data.success) {
+        localStorage.setItem("token", data.token);
+
         setIsAdminMode(true);
         setShowLogin(false);
         setLoginPass("");
@@ -84,18 +94,30 @@ const App: React.FC = () => {
   // 2. FUNÇÕES CRUD GENÉRICAS (Sincronizam com o Servidor)
   const addData = async (collection: string, item: any, setState: Function) => {
     try {
+      const token = localStorage.getItem("token");
+
       const response = await fetch(`${API_BASE_URL}/api/data/${collection}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(item),
       });
-      if (response.ok) {
-        const newItem = await response.json();
-        setState((prev: any) => [newItem, ...prev]);
-        console.log(`Sucesso ao salvar ${collection} no servidor.`);
+
+      if (!response.ok) {
+        throw new Error("Não autorizado");
       }
+
+      const newItem = await response.json();
+
+      setState((prev: any) => [newItem, ...prev]);
+
+      console.log(`Sucesso ao salvar ${collection}`);
     } catch (err) {
-      alert("Erro ao salvar dados na VPS.");
+      console.error(err);
+
+      alert("Erro ao salvar dados.");
     }
   };
 
@@ -110,18 +132,29 @@ const App: React.FC = () => {
       )
     )
       return;
+
     try {
+      const token = localStorage.getItem("token");
+
       const response = await fetch(
         `${API_BASE_URL}/api/data/${collection}/${id}`,
         {
           method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
       );
-      if (response.ok) {
-        setState((prev: any) => prev.filter((i: any) => i.id !== id));
+
+      if (!response.ok) {
+        throw new Error("Não autorizado");
       }
+
+      setState((prev: any) => prev.filter((i: any) => i.id !== id));
     } catch (err) {
-      alert("Erro ao excluir do servidor.");
+      console.error(err);
+
+      alert("Erro ao excluir.");
     }
   };
 
@@ -153,7 +186,10 @@ const App: React.FC = () => {
         onDeleteGalleryItem={(id) => deleteData("gallery", id, setGalleryItems)}
         onAddSong={(s) => addData("songs", s, setSongs)}
         onDeleteSong={(id) => deleteData("songs", id, setSongs)}
-        onLogout={() => setIsAdminMode(false)}
+        onLogout={() => {
+          localStorage.removeItem("token");
+          setIsAdminMode(false);
+        }}
       />
     );
   }
@@ -199,6 +235,7 @@ const App: React.FC = () => {
             className="absolute inset-0 bg-black/95 backdrop-blur-md"
             onClick={() => setSelectedPost(null)}
           ></div>
+
           <div className="relative bg-[#2D0B0B] border border-white/10 w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl">
             <button
               onClick={() => setSelectedPost(null)}
@@ -206,18 +243,25 @@ const App: React.FC = () => {
             >
               <X size={24} />
             </button>
-            <img
-              src={getMediaUrl(selectedPost.imageUrl)}
-              className="w-full h-[450px] object-cover"
-              alt=""
-            />
+
+            {/* IMAGEM AJUSTADA */}
+            <div className="w-full bg-black flex items-center justify-center p-4">
+              <img
+                src={getMediaUrl(selectedPost.imageUrl)}
+                className="max-w-full max-h-[450px] object-contain rounded-2xl"
+                alt=""
+              />
+            </div>
+
             <div className="p-8 md:p-12 text-white">
               <span className="text-red-600 font-bold uppercase tracking-widest text-sm mb-4 block">
                 {selectedPost.date}
               </span>
+
               <h2 className="text-4xl md:text-5xl font-serif font-black mb-8">
                 {selectedPost.title}
               </h2>
+
               <div className="text-white/80 text-lg leading-relaxed whitespace-pre-wrap">
                 {selectedPost.content}
               </div>

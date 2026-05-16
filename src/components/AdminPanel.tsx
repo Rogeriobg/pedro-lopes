@@ -40,14 +40,19 @@ interface AdminPanelProps {
   posts: BlogPost[];
   galleryItems: GalleryItem[];
   songs: Song[];
+
   onAddShow: (show: Omit<Show, "id">) => void;
   onDeleteShow: (id: string) => void;
+
   onAddPost: (post: Omit<BlogPost, "id" | "likes" | "loves">) => void;
   onDeletePost: (id: string) => void;
+
   onAddGalleryItem: (item: Omit<GalleryItem, "id">) => void;
   onDeleteGalleryItem: (id: string) => void;
+
   onAddSong: (song: Omit<Song, "id">) => void;
   onDeleteSong: (id: string) => void;
+
   onLogout: () => void;
 }
 
@@ -113,8 +118,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     );
 
     try {
+      const token = localStorage.getItem("token");
+
       const response = await fetch(targetUrl, {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
         body: formData,
       });
 

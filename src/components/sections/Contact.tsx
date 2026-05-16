@@ -17,7 +17,7 @@ const Contact: React.FC = () => {
   const whatsappUrl = `https://wa.me/${whatsappNumber}`;
   const instagramUrl = `https://instagram.com/${instagramHandle}`;
   const facebookUrl = "https://www.facebook.com/pedrolopes.geraldo";
-  const youtubeUrl = "https://youtu.be/_pwIiP28JXw?si=Jm_jSFnSu3vIkgFD";
+  const youtubeUrl = "https://www.youtube.com/watch?v=_pwIiP28JXw";
 
   // Estados do formulário
   const [formData, setFormData] = useState({
@@ -33,6 +33,7 @@ const Contact: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     setStatus("loading");
     setErrorMessage("");
 
@@ -45,20 +46,41 @@ const Contact: React.FC = () => {
         body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
+      // =====================================================
+      // NOVA PROTEÇÃO CONTRA HTML/ERRO DO SERVIDOR
+      // =====================================================
+
+      const text = await response.text();
+
+      let data;
+
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("Servidor retornou uma resposta inválida.");
+      }
 
       if (!response.ok) {
         throw new Error(data.error || "Erro ao enviar mensagem.");
       }
 
       setStatus("success");
-      setFormData({ name: "", email: "", subject: "", message: "" });
 
-      // Volta ao estado normal após 5 segundos
-      setTimeout(() => setStatus("idle"), 5000);
+      setFormData({
+        name: "",
+        email: "",
+        subject: "",
+        message: "",
+      });
+
+      setTimeout(() => {
+        setStatus("idle");
+      }, 5000);
     } catch (err: any) {
       console.error(err);
+
       setStatus("error");
+
       setErrorMessage(err.message || "Erro de conexão com o servidor.");
     }
   };
